@@ -1,3 +1,3 @@
 # CertChain
 
-Licensed under the MIT license, copyright © Nikolai Kornilov, 2018
+Licensed under the MIT license, copyright © Nikolai Kornilov, 2018
