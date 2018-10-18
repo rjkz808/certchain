@@ -1,0 +1,20 @@
+{
+  "name": "certchain",
+  "version": "0.0.1",
+  "description": "",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test"
+  },
+  "author": "rjkz808",
+  "license": "MIT",
+  "dependencies": {
+    "ethjs-abi": "^0.2.1",
+    "openzeppelin-solidity": "^1.12.0",
+    "readline-sync": "^1.4.9",
+    "truffle-hdwallet-provider": "0.0.6"
+  }
+}
