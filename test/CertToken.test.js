@@ -106,7 +106,7 @@ contract('CertToken', function(accounts) {
     });
 
     context("when the specified token doesn't exist", function() {
-      it('returns', async function() {
+      it('returns false', async function() {
         assert.equal(await this.token.exists(2), false);
       });
     });
@@ -287,6 +287,219 @@ contract('CertToken', function(accounts) {
     context('when zero ID specified', function() {
       it('reverts', async function() {
         await assertRevert(this.token.supportsInterface('0xffffffff'));
+      });
+    });
+  });
+
+  describe('approve', function() {
+    let logs;
+
+    beforeEach('mint and approve a token', async function() {
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.transferFrom(creator, accounts[1], 2, { from: creator });
+      const result = await this.token.approve(accounts[1], 1, { from: creator });
+      logs = result.logs;
+    });
+
+    context('when successfull', function() {
+      it('sets the token approval to the specified address', async function() {
+        assert.equal(parseString(await this.token.getApproved(1)), accounts[1]);
+      });
+
+      it('emits an Approval event', async function() {
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'Approval');
+        assert.equal(logs[0].args._owner, creator);
+        assert.equal(logs[0].args._approved, accounts[1]);
+        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+      });
+    });
+
+    context('when zero address specified', function() {
+      it('reverts', async function() {
+        await assertRevert(this.token.approve(ZERO_ADDRESS, 1, { from: creator }));
+      });
+    });
+
+    context("when the msg.sender doesn't own the specified token", function() {
+      it('reverts', async function() {
+        await assertRevert(this.token.approve(accounts[1], 2, { from: creator }));
+      });
+    });
+
+    context("when the specified token doesn't exist", function() {
+      it('reverts', async function() {
+        await assertRevert(this.token.approve(accounts[1], 3, { from: creator }));
+      });
+    });
+  });
+
+  describe('setApprovalForAll', function() {
+    let logs;
+
+    beforeEach('set an operator approval', async function() {
+      const result = await this.token.setApprovalForAll(accounts[1], true, { from: accounts[0] });
+      logs = result.logs;
+    });
+
+    context('when successfull', function() {
+      it('sets the operator approval', async function() {
+        assert.equal(await this.token.isApprovedForAll(accounts[0], accounts[1]), true);
+      });
+
+      it('emits an ApprovalForAll event', async function() {
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'ApprovalForAll');
+        assert.equal(logs[0].args._owner, accounts[0]);
+        assert.equal(logs[0].args._operator, accounts[1]);
+        assert.equal(logs[0].args._approved, true);
+      });
+    });
+
+    context('when zero address specified', function() {
+      it('reverts', async function() {
+        await assertRevert(this.token.setApprovalForAll(ZERO_ADDRESS, true, { from: accounts[0] }));
+      });
+    });
+  });
+
+  describe('clearApproval', function() {
+    let logs;
+
+    beforeEach('mint and approve tokens', async function() {
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.transferFrom(creator, accounts[1], 3, { from: creator });
+      await this.token.approve(accounts[1], 1, { from: creator });
+    });
+
+    context('when the specified token approval exists', function() {
+      beforeEach('clear approval', async function() {
+        const result = await this.token.clearApproval(1, { from: creator });
+        logs = result.logs;
+      });
+
+      it('sets the specified token approval to zero address', async function() {
+        assert.equal(parseString(await this.token.getApproved(1)), ZERO_ADDRESS);
+      });
+
+      it('emits an Approval event', async function() {
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'Approval');
+        assert.equal(logs[0].args._owner, creator);
+        assert.equal(logs[0].args._approved, ZERO_ADDRESS);
+        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+      });
+    });
+
+    context("when the specified token approval doesn't exist", function() {
+      beforeEach('clear approval', async function() {
+        const result = await this.token.clearApproval(2, { from: creator });
+        logs = result.logs;
+      });
+
+      it("doesn't do anything with the specified token approval", async function() {
+        assert.equal(parseString(await this.token.getApproved(2)), ZERO_ADDRESS);
+      });
+
+      it("doesn't emit any event", async function() {
+        assert.equal(logs.length, 0);
+      });
+    });
+
+    context("when the msg.sender doesn't own the specified token", function() {
+      it('reverts', async function() {
+        await assertRevert(this.token.clearApproval(3, { from: creator }));
+      });
+    });
+
+    context("when the specified token doesn't exist", function() {
+      it('reverts', async function() {
+        await assertRevert(this.token.clearApproval(4, { from: creator }));
+      });
+    });
+  });
+
+  describe('transfer', function() {
+    let logs;
+
+    beforeEach('mint tokens', async function() {
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+    });
+
+    const _clearApproval = function() {
+      it('clears the token approval', async function() {
+        assert.equal(parseString(await this.token.getApproved(1)), ZERO_ADDRESS);
+      });
+    };
+
+    const _removeTokenFrom = function() {
+      it('decreases the token owner balance', async function() {
+        assert.equal(parseNumber(await this.token.balanceOf(creator)), 1);
+      });
+
+      it('moves the last token to the sent token position in the ownedTokens array', async function() {
+        assert.equal(parseNumber(await this.token.tokenOfOwnerByIndex(creator, 0)), 2);
+      });
+    };
+
+    const transferFrom = function() {
+      _clearApproval();
+      _removeTokenFrom();
+
+      it('increases the token recepient balance', async function() {
+        assert.equal(parseNumber(await this.token.balanceOf(accounts[1])), 1);
+      });
+
+      it('sets the token owner to the recepient address', async function() {
+        assert.equal(parseString(await this.token.ownerOf(1)), accounts[1]);
+      });
+
+      it('adds token to the ownedTokens array', async function() {
+        assert.equal(parseNumber(await this.token.tokenOfOwnerByIndex(accounts[1], 0)), 1);
+      });
+
+      it('emits a Transfer event', async function() {
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'Transfer');
+        assert.equal(logs[0].args._from, creator);
+        assert.equal(logs[0].args._to, accounts[1]);
+        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+      });
+    };
+
+    context('transferFrom', function() {
+      context('when the msg.sender owns the specified token', function() {
+        beforeEach('transfer token', async function() {
+          const result = await this.token.transferFrom(creator, accounts[1], 1, { from: creator });
+          logs = result.logs;
+        });
+        transferFrom();
+      });
+
+      context('when the msg.sender spends the specified token', function() {
+        beforeEach('transfer token', async function() {
+          await this.token.approve(accounts[1], 1, { from: creator });
+          const result = await this.token.transferFrom(creator, accounts[1], 1, {
+            from: accounts[1]
+          });
+          logs = result.logs;
+        });
+        transferFrom();
+      });
+
+      context('when the msg.sender is an operator approval of the token owner', function() {
+        beforeEach('transfer token', async function() {
+          await this.token.setApprovalForAll(accounts[1], true, { from: creator });
+          const result = await this.token.transferFrom(creator, accounts[1], 1, {
+            from: accounts[1]
+          });
+          logs = result.logs;
+        });
+        transferFrom();
       });
     });
   });

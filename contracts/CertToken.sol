@@ -234,7 +234,11 @@ contract CertToken is ERC721 {
    * @param _tokenId uint256 ID of the token
    */
   function clearApproval(uint256 _tokenId) public onlyOwnerOf(_tokenId) {
-    _clearApproval(_tokenId);
+    require(exists(_tokenId));
+    if (tokenApproval[_tokenId] != address(0)) {
+      tokenApproval[_tokenId] = address(0);
+      emit Approval(msg.sender, address(0), _tokenId);
+    }
   }
 
   /**
@@ -244,7 +248,14 @@ contract CertToken is ERC721 {
    * @param _tokenId uint256 ID of the token to be transferred
    */
   function transferFrom(address _from, address _to, uint256 _tokenId) public {
-    safeTransferFrom(_from, _to, _tokenId, "");
+    require(isApprovedOrOwner(msg.sender, _tokenId));
+    require(_to != address(0));
+
+    _clearApproval(_tokenId);
+    _removeTokenFrom(_from, _tokenId);
+    _addTokenTo(_to, _tokenId);
+
+    emit Transfer(_from, _to, _tokenId);
   }
 
   /**
@@ -278,15 +289,8 @@ contract CertToken is ERC721 {
   )
     public
   {
-    require(isApprovedOrOwner(msg.sender, _tokenId));
-    require(_to != address(0));
-
-    _clearApproval(_tokenId);
-    _removeTokenFrom(_from, _tokenId);
-    _addTokenTo(_to, _tokenId);
+    transferFrom(_from, _to, _tokenId);
     require(_onERC721Received(msg.sender, _from, _to, _tokenId, _data));
-
-    emit Transfer(_from, _to, _tokenId);
   }
 
   /**
@@ -315,7 +319,6 @@ contract CertToken is ERC721 {
     require(exists(_tokenId));
     if (tokenApproval[_tokenId] != address(0))
       tokenApproval[_tokenId] = address(0);
-    emit Approval(ownerOf(_tokenId), address(0), _tokenId);
   }
 
   /**
