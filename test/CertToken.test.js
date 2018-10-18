@@ -3,6 +3,7 @@ const { parseNumber, parseString, parseJSON } = require('./helpers/bignumberUtil
 const { sendTransaction } = require('openzeppelin-solidity/test/helpers/sendTransaction');
 
 const CertToken = artifacts.require('CertChain');
+const Receiver = artifacts.require('Receiver');
 
 contract('CertToken', function(accounts) {
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -423,9 +424,11 @@ contract('CertToken', function(accounts) {
   });
 
   describe('transfer', function() {
+    let receiver;
     let logs;
 
     beforeEach('mint tokens', async function() {
+      this.receiver = await Receiver.new({ from: creator });
       await this.token.apply('', '', 1, accounts[1], { from: creator });
       await this.token.apply('', '', 1, accounts[1], { from: creator });
     });
@@ -446,7 +449,7 @@ contract('CertToken', function(accounts) {
       });
     };
 
-    const transferFrom = function() {
+    const transfer = function() {
       _clearApproval();
       _removeTokenFrom();
 
@@ -471,13 +474,38 @@ contract('CertToken', function(accounts) {
       });
     };
 
+    const transferToContract = function() {
+      _clearApproval();
+      _removeTokenFrom();
+
+      it('increases the token recepient balance', async function() {
+        assert.equal(parseNumber(await this.token.balanceOf(this.receiver.address)), 1);
+      });
+
+      it('sets the token owner to the recepient address', async function() {
+        assert.equal(parseString(await this.token.ownerOf(1)), this.receiver.address);
+      });
+
+      it('adds token to the ownedTokens array', async function() {
+        assert.equal(parseNumber(await this.token.tokenOfOwnerByIndex(this.receiver.address, 0)), 1);
+      });
+
+      it('emits a Transfer event', async function() {
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'Transfer');
+        assert.equal(logs[0].args._from, creator);
+        assert.equal(logs[0].args._to, this.receiver.address);
+        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+      });
+    };
+
     context('transferFrom', function() {
       context('when the msg.sender owns the specified token', function() {
         beforeEach('transfer token', async function() {
           const result = await this.token.transferFrom(creator, accounts[1], 1, { from: creator });
           logs = result.logs;
         });
-        transferFrom();
+        transfer();
       });
 
       context('when the msg.sender spends the specified token', function() {
@@ -488,7 +516,7 @@ contract('CertToken', function(accounts) {
           });
           logs = result.logs;
         });
-        transferFrom();
+        transfer();
       });
 
       context('when the msg.sender is an operator approval of the token owner', function() {
@@ -499,7 +527,345 @@ contract('CertToken', function(accounts) {
           });
           logs = result.logs;
         });
-        transferFrom();
+        transfer();
+      });
+
+      context('when the specified token doesn\'t exist', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.transferFrom(creator, accounts[1], 3, { from: creator }));
+        });
+      });
+
+      context('when the msg.sender doesn\'t own or spend the specified token', function() {
+        it('reverts', async function() {
+          await this.token.approve(accounts[1], 1, { from: creator });
+          await this.token.setApprovalForAll(accounts[2], true, { from: creator });
+          await assertRevert(this.token.transferFrom(creator, accounts[1], 1, { from: accounts[3] }));
+        });
+      });
+
+      context('when the specified as a token owner address doesn\'t own the specified token', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.transferFrom(accounts[1], accounts[1], 1, { from: creator }));
+        });
+      });
+
+      context('when zero address specified as a token recepient', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.transferFrom(creator, ZERO_ADDRESS, 1, { from: creator }));
+        });
+      });
+    });
+
+    context('safeTransferFrom', function() {
+      context('when the token recepient is the regular account', function() {
+        context('when the msg.sender owns the specified token', function() {
+          beforeEach('transfer token', async function() {
+            const result = await this.token.safeTransferFrom(creator, accounts[1], 1, { from: creator });
+            logs = result.logs;
+          });
+          transfer();
+        });
+
+        context('when the msg.sender spends the specified token', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            const result = await this.token.safeTransferFrom(creator, accounts[1], 1, {
+              from: accounts[1]
+            });
+            logs = result.logs;
+          });
+          transfer();
+        });
+
+        context('when the msg.sender is an operator approval of the token owner', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.setApprovalForAll(accounts[1], true, { from: creator });
+            const result = await this.token.safeTransferFrom(creator, accounts[1], 1, {
+              from: accounts[1]
+            });
+            logs = result.logs;
+          });
+          transfer();
+        });
+
+        context('when the specified token doesn\'t exist', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.safeTransferFrom(creator, accounts[1], 3, { from: creator }));
+          });
+        });
+
+        context('when the msg.sender doesn\'t own or spend the specified token', function() {
+          it('reverts', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            await this.token.setApprovalForAll(accounts[2], true, { from: creator });
+            await assertRevert(this.token.safeTransferFrom(creator, accounts[1], 1, { from: accounts[3] }));
+          });
+        });
+
+        context('when the specified as a token owner address doesn\'t own the specified token', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.safeTransferFrom(accounts[1], accounts[1], 1, { from: creator }));
+          });
+        });
+
+        context('when zero address specified as a token recepient', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.safeTransferFrom(creator, ZERO_ADDRESS, 1, { from: creator }));
+          });
+        });
+      });
+
+      context('when the token recepient is the smart contract', function() {
+        context('when the msg.sender owns the specified token', function() {
+          beforeEach('transfer token', async function() {
+            const result = await this.token.safeTransferFrom(creator, this.receiver.address, 1, { from: creator });
+            logs = result.logs;
+          });
+          transferToContract();
+        });
+
+        context('when the msg.sender spends the specified token', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            const result = await this.token.safeTransferFrom(creator, this.receiver.address, 1, {
+              from: accounts[1]
+            });
+            logs = result.logs;
+          });
+          transferToContract();
+        });
+
+        context('when the msg.sender is an operator approval of the token owner', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.setApprovalForAll(accounts[1], true, { from: creator });
+            const result = await this.token.safeTransferFrom(creator, this.receiver.address, 1, {
+              from: accounts[1]
+            });
+            logs = result.logs;
+          });
+          transferToContract();
+        });
+
+        context('when the specified token doesn\'t exist', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.safeTransferFrom(creator, this.receiver.address, 3, { from: creator }));
+          });
+        });
+
+        context('when the msg.sender doesn\'t own or spend the specified token', function() {
+          it('reverts', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            await this.token.setApprovalForAll(accounts[2], true, { from: creator });
+            await assertRevert(this.token.safeTransferFrom(creator, this.receiver.address, 1, { from: accounts[3] }));
+          });
+        });
+
+        context('when the specified as a token owner address doesn\'t own the specified token', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.safeTransferFrom(accounts[1], this.receiver.address, 1, { from: creator }));
+          });
+        });
+
+        context('when zero address specified as a token recepient', function() {
+          it('reverts', async function() {
+            await assertRevert(this.token.safeTransferFrom(creator, ZERO_ADDRESS, 1, { from: creator }));
+          });
+        });
+      });
+    });
+
+    context('safeTransferFrom with bytes metadata', function() {
+      context('when the token recepient is the regular account', function() {
+        context('when the msg.sender owns the specified token', function() {
+          beforeEach('transfer token', async function() {
+            const result = await sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, accounts[1], 1, web3.toHex('test')],
+              { from: creator }
+            );
+            logs = result.logs;
+          });
+          transfer();
+        });
+
+        context('when the msg.sender spends the specified token', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            const result = await sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, accounts[1], 1, web3.toHex('test')],
+              { from: accounts[1] }
+            );
+            logs = result.logs;
+          });
+          transfer();
+        });
+
+        context('when the msg.sender is an operator approval of the token owner', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.setApprovalForAll(accounts[1], true, { from: creator });
+            const result = await sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, accounts[1], 1, web3.toHex('test')],
+              { from: accounts[1] }
+            );
+            logs = result.logs;
+          });
+          transfer();
+        });
+
+        context('when the specified token doesn\'t exist', function() {
+          it('reverts', async function() {
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, accounts[1], 3, web3.toHex('test')],
+              { from: creator }
+            ));
+          });
+        });
+
+        context('when the msg.sender doesn\'t own or spend the specified token', function() {
+          it('reverts', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            await this.token.setApprovalForAll(accounts[2], true, { from: creator });
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, accounts[1], 1, web3.toHex('test')],
+              { from: accounts[3] }
+            ));
+          });
+        });
+
+        context('when the specified as a token owner address doesn\'t own the specified token', function() {
+          it('reverts', async function() {
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [accounts[1], accounts[1], 1, web3.toHex('test')],
+              { from: creator }
+            ));
+          });
+        });
+
+        context('when zero address specified as a token recepient', function() {
+          it('reverts', async function() {
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, ZERO_ADDRESS, 1, web3.toHex('test')],
+              { from: creator }
+            ));
+          });
+        });
+      });
+
+      context('when the token recepient is the smart contract', function() {
+        context('when the msg.sender owns the specified token', function() {
+          beforeEach('transfer token', async function() {
+            const result = await sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, this.receiver.address, 1, web3.toHex('test')],
+              { from: creator }
+            );
+            logs = result.logs;
+          });
+          transferToContract();
+        });
+
+        context('when the msg.sender spends the specified token', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            const result = await sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, this.receiver.address, 1, web3.toHex('test')],
+              { from: accounts[1] }
+            );
+            logs = result.logs;
+          });
+          transferToContract();
+        });
+
+        context('when the msg.sender is an operator approval of the token owner', function() {
+          beforeEach('transfer token', async function() {
+            await this.token.setApprovalForAll(accounts[1], true, { from: creator });
+            const result = await sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, this.receiver.address, 1, web3.toHex('test')],
+              { from: accounts[1] }
+            );
+            logs = result.logs;
+          });
+          transferToContract();
+        });
+
+        context('when the specified token doesn\'t exist', function() {
+          it('reverts', async function() {
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, this.receiver.address, 3, web3.toHex('test')],
+              { from: creator }
+            ));
+          });
+        });
+
+        context('when the msg.sender doesn\'t own or spend the specified token', function() {
+          it('reverts', async function() {
+            await this.token.approve(accounts[1], 1, { from: creator });
+            await this.token.setApprovalForAll(accounts[2], true, { from: creator });
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, this.receiver.address, 1, web3.toHex('test')],
+              { from: accounts[3] }
+            ));
+          });
+        });
+
+        context('when the specified as a token owner address doesn\'t own the specified token', function() {
+          it('reverts', async function() {
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [accounts[1], this.receiver.address, 1, web3.toHex('test')],
+              { from: creator }
+            ));
+          });
+        });
+
+        context('when zero address specified as a token recepient', function() {
+          it('reverts', async function() {
+            await assertRevert(sendTransaction(
+              this.token,
+              'safeTransferFrom',
+              'address,address,uint256,bytes',
+              [creator, ZERO_ADDRESS, 1, web3.toHex('test')],
+              { from: creator }
+            ));
+          });
+        });
       });
     });
   });
