@@ -1,5 +1,5 @@
 const { assertRevert } = require('openzeppelin-solidity/test/helpers/assertRevert');
-const { parseNumber, parseString, parseJSON } = require('./helpers/bignumberUtils');
+const { parseNumber, parseString } = require('./helpers/bignumberUtils');
 const { sendTransaction } = require('openzeppelin-solidity/test/helpers/sendTransaction');
 
 const CertToken = artifacts.require('CertChain');
@@ -423,7 +423,7 @@ contract('CertToken', function(accounts) {
     });
   });
 
-  describe('transfer', function() {
+  describe('transfer methods', function() {
     let receiver;
     let logs;
 
@@ -865,6 +865,110 @@ contract('CertToken', function(accounts) {
               { from: creator }
             ));
           });
+        });
+      });
+    });
+  });
+
+  describe('burn methods', function() {
+    let logs;
+
+    beforeEach('mint a token', async function() {
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[1], { from: creator });
+    });
+
+    const _burn = function() {
+      it('decreases the token owner balance', async function() {
+        assert.equal(parseNumber(await this.token.balanceOf(creator)), 1);
+      });
+
+      it('moves the last token to the burned token position in the ownedTokens array', async function() {
+        assert.equal(parseNumber(await this.token.tokenOfOwnerByIndex(creator, 0)), 2);
+      });
+
+      it('decreases the total tokens amount', async function() {
+        assert.equal(parseNumber(await this.token.totalSupply()), 1);
+      });
+
+      it('moves the lat token to the burned token position in the allTokens array', async function() {
+        assert.equal(parseNumber(await this.token.tokenByIndex(0)), 2);
+      });
+
+      it('emits a Transfer event', async function() {
+        assert.equal(logs.length, 2);
+        assert.equal(logs[0].event, 'Transfer');
+        assert.equal(logs[0].args._from, creator);
+        assert.equal(logs[0].args._to, ZERO_ADDRESS);
+        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+      });
+
+      it('emits a Burn event', async function() {
+        assert.equal(logs.length, 2);
+        assert.equal(logs[1].event, 'Burn');
+        assert.equal(logs[1].args.owner, creator);
+        assert.equal(parseNumber(logs[1].args.tokenId), 1);
+      });
+    };
+
+    context('burn', function() {
+      context('when successfull', function() {
+        beforeEach('burn a token', async function() {
+          const result = await this.token.burn(1, { from: creator });
+          logs = result.logs;
+        });
+        _burn();
+      });
+
+      context('when the msg.sender doesn\'t own the specified token', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.burn(1, { from: accounts[1] }));
+        });
+      });
+
+      context('when the specified token doesn\'t exist', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.burn(3, { from: creator }));
+        });
+      });
+    });
+
+    context('burnFrom', function() {
+      context('when the msg.sender owns the specified token', function() {
+        beforeEach('burn a token', async function() {
+          const result = await this.token.burnFrom(creator, 1, { from: creator });
+          logs = result.logs;
+        });
+        _burn();
+      });
+
+      context('when the msg.sender spends the specified token', function() {
+        beforeEach('burn a token', async function() {
+          await this.token.approve(accounts[1], 1, { from: creator });
+          const result = await this.token.burnFrom(creator, 1, { from: accounts[1] });
+          logs = result.logs;
+        });
+        _burn();
+      });
+
+      context('when the msg.sender is an operator approval of the token owner', function() {
+        beforeEach('burn a token', async function() {
+          await this.token.setApprovalForAll(accounts[1], true, { from: creator });
+          const result = await this.token.burnFrom(creator, 1, { from: accounts[1] });
+          logs = result.logs;
+        });
+        _burn();
+      });
+
+      context('when the msg.sender doesn\'t own or spend the specified token', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.burnFrom(creator, 1, { from: accounts[2] }));
+        });
+      });
+
+      context('when the specified token doesn\'t exist', function() {
+        it('reverts', async function() {
+          await assertRevert(this.token.burnFrom(creator, 3, { from: creator }));
         });
       });
     });
