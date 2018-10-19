@@ -140,7 +140,7 @@ contract('CertChain', function(accounts) {
         });
 
         it('emits a Transfer event', async function() {
-          assert.equal(this.logs.length, 2);
+          assert.equal(this.logs.length, 1);
           assert.equal(this.logs[0].event, 'Transfer');
           assert.equal(this.logs[0].args._from, ZERO_ADDRESS);
           assert.equal(this.logs[0].args._to, creator);
@@ -171,14 +171,6 @@ contract('CertChain', function(accounts) {
 
         it('sets the certificate agency', async function() {
           assert.equal(parseString((await this.chain.getCertData(1))[5]), 'agency');
-        });
-
-        it('emits an Apply event', async function() {
-          assert.equal(this.logs.length, 2);
-          assert.equal(this.logs[1].event, 'Apply');
-          assert.equal(this.logs[1].args.company, accounts[1]);
-          assert.equal(this.logs[1].args.auditor, accounts[2]);
-          assert.equal(parseNumber(this.logs[1].args.certId), 1);
         });
       });
     });
@@ -220,6 +212,125 @@ contract('CertChain', function(accounts) {
             from: creator
           })
         );
+      });
+    });
+  });
+
+  describe('uploadQMS', function() {
+    beforeEach('apply', async function() {
+      await this.chain.apply('standard', 'agency', 10, accounts[2], {
+        from: accounts[1]
+      });
+    });
+
+    context('when successfull', function() {
+      let logs;
+
+      beforeEach('uploadQMS', async function() {
+        const result = await this.chain.uploadQMS(1, 'QMS', { from: accounts[1] });
+        this.logs = result.logs;
+      });
+
+      it('sets the specified certificate QMS hash', async function() {
+        assert.equal(
+          parseString((await this.chain.getCertData(1))[6]),
+          web3.sha3(web3.toHex('QMS'), { encoding: 'hex' })
+        );
+      });
+    });
+
+    context("when the msg.sender isn't customer company of the specified certificate", function() {
+      it('reverts', async function() {
+        await assertRevert(this.chain.uploadQMS(1, 'QMS', { from: accounts[2] }));
+      });
+    });
+
+    context("when the contract owner doesn't own the specified certificate", function() {
+      it('reverts', async function() {
+        await this.chain.transferFrom(creator, accounts[1], 1, { from: creator });
+        await assertRevert(this.chain.uploadQMS(1, 'QMS', { from: accounts[1] }));
+      });
+    });
+  });
+
+  describe('audit', function() {
+    let time;
+    let logs;
+
+    beforeEach('apply', async function() {
+      await this.chain.apply('standard', 'agency', 10, accounts[2], {
+        from: accounts[1]
+      });
+      await this.chain.uploadQMS(1, 'QMS', { from: accounts[1] });
+    });
+
+    context('when the audit function is called the first time', function() {
+      beforeEach('audit', async function() {
+        const result = await this.chain.audit(1, 'first audit report', { from: accounts[2] });
+        this.time = await latestTime();
+        this.logs = result.logs;
+      });
+
+      it('sets the first audit date', async function() {
+        assert.equal(parseNumber((await this.chain.getCertAudit(1))[0]), this.time);
+      });
+
+      it('sets first audit report', async function() {
+        assert.equal(
+          parseString((await this.chain.getCertAudit(1))[1]),
+          web3.sha3(web3.toHex('first audit report'), { encoding: 'hex' })
+        );
+      });
+    });
+
+    context('when the audit function is called the second time', function() {
+      beforeEach('audit', async function() {
+        await this.chain.audit(1, 'first audit report', { from: accounts[2] });
+        const result = await this.chain.audit(1, 'second audit report', { from: accounts[2] });
+        this.time = await latestTime();
+        this.logs = result.logs;
+      });
+
+      it('sets the second audit date', async function() {
+        assert.equal(parseNumber((await this.chain.getCertAudit(1))[2]), this.time);
+      });
+
+      it('sets second audit report', async function() {
+        assert.equal(
+          parseString((await this.chain.getCertAudit(1))[3]),
+          web3.sha3(web3.toHex('second audit report'), { encoding: 'hex' })
+        );
+      });
+    });
+
+    context('when the audit function is called 3 or more times', function() {
+      it('reverts', async function() {
+        await this.chain.audit(1, 'first audit report', { from: accounts[2] });
+        await this.chain.audit(1, 'second audit report', { from: accounts[2] });
+        await assertRevert(this.chain.audit(1, 'third audit report', { from: accounts[2] }));
+      });
+    });
+
+    context("when the msg.sender isn't auditor of the specified certificate", function() {
+      it('reverts', async function() {
+
+        await assertRevert(this.chain.audit(1, 'first audit report', { from: accounts[1] }));
+      });
+    });
+
+    context("when the contract owner doesn't own the specified token", function() {
+      it('reverts', async function() {
+        await this.chain.transferFrom(creator, accounts[1], 1, { from: creator });
+        await assertRevert(this.chain.audit(1, 'first audit report', { from: accounts[2] }));
+      });
+    });
+
+    context('when the customer company hasn\'t uploaded the QMS documents yet', function() {
+      it('reverts', async function() {
+        await this.chain.apply('standard', 'agency', 10, accounts[2], {
+          from: accounts[1]
+        });
+        await assertRevert(this.chain.audit(2, 'first audit report', { from: accounts[2] }));
       });
     });
   });

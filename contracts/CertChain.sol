@@ -14,18 +14,12 @@ contract CertChain is CertToken, Contactable {
   mapping (uint256 => string) internal agency;
   mapping (uint256 => uint256) internal cost;
   mapping (uint256 => address) internal auditor;
-  mapping (uint256 => address) internal company;
+  mapping (uint256 => address) internal customerCompany;
   mapping (uint256 => bytes32) internal QMS;
   mapping (uint256 => uint256) internal firstAuditDate;
   mapping (uint256 => bytes32) internal firstAuditReport;
   mapping (uint256 => uint256) internal secondAuditDate;
   mapping (uint256 => bytes32) internal secondAuditReport;
-
-  event Apply(
-    address indexed company,
-    address indexed auditor,
-    uint256 certId
-  );
 
   /**
    * @dev Reverts, if the `msg.sender` isn't auditor of the
@@ -43,15 +37,24 @@ contract CertChain is CertToken, Contactable {
    * @dev of the specified certificate
    * @param _certId uint256 ID of the certificate
    */
-  modifier onlyCertCompany(uint256 _certId) {
+  modifier onlyCustomerCompany(uint256 _certId) {
     require(exists(_certId));
-    require(msg.sender == company[_certId]);
+    require(msg.sender == customerCompany[_certId]);
     _;
   }
 
   /**
    * @dev Gets the certificate data
    * @param _certId uint256 ID of the certificate
+   * @return {
+     "_applicationDate": "uint256 the certificate application date",
+     "_cost": "uint256 the certificate cost"
+     "_auditor": "address the certificate auditor"
+     "_company": "address the certificate customer company
+     "_standard": "string the certificate standard"
+     "_agency": "string the certificate agency"
+     "_QMS": "bytes32 the certificate QMS documentation hash"
+   }
    */
   function getCertData(uint256 _certId)
     public
@@ -71,13 +74,23 @@ contract CertChain is CertToken, Contactable {
       applicationDate[_certId],
       cost[_certId],
       auditor[_certId],
-      company[_certId],
+      customerCompany[_certId],
       standard[_certId],
       agency[_certId],
       QMS[_certId]
     );
   }
 
+  /**
+   * @dev Gets the certificate audit data
+   * @param _certId uint256 ID of the certificate
+   * @return {
+     "_firstAuditDate": "uint256 the first audit date",
+     "_firstAuditReport": "bytes32 the first audit report"
+     "_secondAuditDate": "uint256 the second audit date"
+     "_secondAuditReport": "bytes32 the second audit report"
+   }
+   */
   function getCertAudit(uint256 _certId)
     public
     view
@@ -97,6 +110,13 @@ contract CertChain is CertToken, Contactable {
     );
   }
 
+  /**
+   * @dev Function for certificate application
+   * @param _standard string the certificate standard
+   * @param _agency string the certificate standard
+   * @param _cost uint256 the certificate cost
+   * @param _auditor address the certificate auditor
+   */
   function apply(
     string _standard,
     string _agency,
@@ -115,24 +135,34 @@ contract CertChain is CertToken, Contactable {
     applicationDate[certId] = block.timestamp;
     cost[certId] = _cost;
     auditor[certId] = _auditor;
-    company[certId] = msg.sender;
+    customerCompany[certId] = msg.sender;
     standard[certId] = _standard;
     agency[certId] = _agency;
-
-    emit Apply(msg.sender, _auditor, certId);
   }
 
+  /**
+   * @dev Function to upload the certificate QMS documentation
+   * @param _certId uint256 ID of the certificate
+   * @param _qms string the QMS documentation
+   */
   function uploadQMS(uint256 _certId, string _qms)
-    public onlyCertCompany(_certId)
+    public onlyCustomerCompany(_certId)
   {
     require(ownerOf(_certId) == owner);
     QMS[_certId] = keccak256(bytes(_qms));
   }
 
+  /**
+   * @dev Function to audit the certificate
+   * @param _certId uint256 ID of the certificate
+   * @param _report string the audit report
+   */
   function audit(uint256 _certId, string _report)
     public onlyAuditor(_certId)
   {
     require(ownerOf(_certId) == owner);
+    require(QMS[_certId] != bytes32(0));
+
     if (firstAuditDate[_certId] == 0) {
       firstAuditDate[_certId] = block.timestamp;
       firstAuditReport[_certId] = keccak256(bytes(_report));
