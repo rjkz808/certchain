@@ -33,7 +33,6 @@ contract CertToken is ERC721 {
   mapping (bytes4 => bool) internal supportedInterfaces;
 
   event Burn(address indexed owner, uint256 tokenId);
-  event Mint(address indexed to, uint256 tokenId, string _uri);
 
   /**
    * @dev Reverts, if the `msg.sender` doesn't own the specified token
@@ -413,9 +412,7 @@ contract CertToken is ERC721 {
     _setTokenURI(_tokenId, _uri);
     allTokensIndex[_tokenId] = allTokens.length;
     allTokens.push(_tokenId);
-
     emit Transfer(address(0), _to, _tokenId);
-    emit Mint(_to, _tokenId, _uri);
   }
 
   /**

@@ -55,7 +55,7 @@ contract('CertToken', function(accounts) {
 
   describe('balanceOf', function() {
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     context('when the specified address owns some tokens', function() {
@@ -79,7 +79,7 @@ contract('CertToken', function(accounts) {
 
   describe('ownerOf', function() {
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     context('when successfull', function() {
@@ -97,7 +97,7 @@ contract('CertToken', function(accounts) {
 
   describe('exists', function() {
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     context('when the specified token exists', function() {
@@ -115,7 +115,7 @@ contract('CertToken', function(accounts) {
 
   describe('getApproved', function() {
     beforeEach('mint and approve a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
       await this.token.approve(accounts[1], 1, { from: creator });
     });
 
@@ -164,7 +164,7 @@ contract('CertToken', function(accounts) {
 
   describe('isApprovedOrOwner', function() {
     beforeEach('mint and approve a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
       await this.token.approve(accounts[1], 1, { from: creator });
       await this.token.setApprovalForAll(accounts[2], true, { from: creator });
     });
@@ -208,7 +208,7 @@ contract('CertToken', function(accounts) {
 
   describe('tokenOfOwnerByIndex', function() {
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     context('when sucessfull', function() {
@@ -235,7 +235,7 @@ contract('CertToken', function(accounts) {
 
   describe('tokenByIndex', function() {
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     context('when sucessfull', function() {
@@ -256,7 +256,7 @@ contract('CertToken', function(accounts) {
 
   describe('tokenURI', function() {
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     context('when successfull', function() {
@@ -296,11 +296,11 @@ contract('CertToken', function(accounts) {
     let logs;
 
     beforeEach('mint and approve a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
       await this.token.transferFrom(creator, accounts[1], 2, { from: creator });
       const result = await this.token.approve(accounts[1], 1, { from: creator });
-      logs = result.logs;
+      this.logs = result.logs;
     });
 
     context('when successfull', function() {
@@ -309,11 +309,11 @@ contract('CertToken', function(accounts) {
       });
 
       it('emits an Approval event', async function() {
-        assert.equal(logs.length, 1);
-        assert.equal(logs[0].event, 'Approval');
-        assert.equal(logs[0].args._owner, creator);
-        assert.equal(logs[0].args._approved, accounts[1]);
-        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+        assert.equal(this.logs.length, 1);
+        assert.equal(this.logs[0].event, 'Approval');
+        assert.equal(this.logs[0].args._owner, creator);
+        assert.equal(this.logs[0].args._approved, accounts[1]);
+        assert.equal(parseNumber(this.logs[0].args._tokenId), 1);
       });
     });
 
@@ -341,7 +341,7 @@ contract('CertToken', function(accounts) {
 
     beforeEach('set an operator approval', async function() {
       const result = await this.token.setApprovalForAll(accounts[1], true, { from: accounts[0] });
-      logs = result.logs;
+      this.logs = result.logs;
     });
 
     context('when successfull', function() {
@@ -350,11 +350,11 @@ contract('CertToken', function(accounts) {
       });
 
       it('emits an ApprovalForAll event', async function() {
-        assert.equal(logs.length, 1);
-        assert.equal(logs[0].event, 'ApprovalForAll');
-        assert.equal(logs[0].args._owner, accounts[0]);
-        assert.equal(logs[0].args._operator, accounts[1]);
-        assert.equal(logs[0].args._approved, true);
+        assert.equal(this.logs.length, 1);
+        assert.equal(this.logs[0].event, 'ApprovalForAll');
+        assert.equal(this.logs[0].args._owner, accounts[0]);
+        assert.equal(this.logs[0].args._operator, accounts[1]);
+        assert.equal(this.logs[0].args._approved, true);
       });
     });
 
@@ -369,9 +369,9 @@ contract('CertToken', function(accounts) {
     let logs;
 
     beforeEach('mint and approve tokens', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1]});
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1]});
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1]});
       await this.token.transferFrom(creator, accounts[1], 3, { from: creator });
       await this.token.approve(accounts[1], 1, { from: creator });
     });
@@ -379,7 +379,7 @@ contract('CertToken', function(accounts) {
     context('when the specified token approval exists', function() {
       beforeEach('clear approval', async function() {
         const result = await this.token.clearApproval(1, { from: creator });
-        logs = result.logs;
+        this.logs = result.logs;
       });
 
       it('sets the specified token approval to zero address', async function() {
@@ -387,18 +387,18 @@ contract('CertToken', function(accounts) {
       });
 
       it('emits an Approval event', async function() {
-        assert.equal(logs.length, 1);
-        assert.equal(logs[0].event, 'Approval');
-        assert.equal(logs[0].args._owner, creator);
-        assert.equal(logs[0].args._approved, ZERO_ADDRESS);
-        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+        assert.equal(this.logs.length, 1);
+        assert.equal(this.logs[0].event, 'Approval');
+        assert.equal(this.logs[0].args._owner, creator);
+        assert.equal(this.logs[0].args._approved, ZERO_ADDRESS);
+        assert.equal(parseNumber(this.logs[0].args._tokenId), 1);
       });
     });
 
     context("when the specified token approval doesn't exist", function() {
       beforeEach('clear approval', async function() {
         const result = await this.token.clearApproval(2, { from: creator });
-        logs = result.logs;
+        this.logs = result.logs;
       });
 
       it("doesn't do anything with the specified token approval", async function() {
@@ -406,7 +406,7 @@ contract('CertToken', function(accounts) {
       });
 
       it("doesn't emit any event", async function() {
-        assert.equal(logs.length, 0);
+        assert.equal(this.logs.length, 0);
       });
     });
 
@@ -429,8 +429,8 @@ contract('CertToken', function(accounts) {
 
     beforeEach('mint tokens', async function() {
       this.receiver = await Receiver.new({ from: creator });
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1]});
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1]});
     });
 
     const _clearApproval = function() {
@@ -466,11 +466,11 @@ contract('CertToken', function(accounts) {
       });
 
       it('emits a Transfer event', async function() {
-        assert.equal(logs.length, 1);
-        assert.equal(logs[0].event, 'Transfer');
-        assert.equal(logs[0].args._from, creator);
-        assert.equal(logs[0].args._to, accounts[1]);
-        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+        assert.equal(this.logs.length, 1);
+        assert.equal(this.logs[0].event, 'Transfer');
+        assert.equal(this.logs[0].args._from, creator);
+        assert.equal(this.logs[0].args._to, accounts[1]);
+        assert.equal(parseNumber(this.logs[0].args._tokenId), 1);
       });
     };
 
@@ -491,19 +491,19 @@ contract('CertToken', function(accounts) {
       });
 
       it('emits a Transfer event', async function() {
-        assert.equal(logs.length, 1);
-        assert.equal(logs[0].event, 'Transfer');
-        assert.equal(logs[0].args._from, creator);
-        assert.equal(logs[0].args._to, this.receiver.address);
-        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+        assert.equal(this.logs.length, 1);
+        assert.equal(this.logs[0].event, 'Transfer');
+        assert.equal(this.logs[0].args._from, creator);
+        assert.equal(this.logs[0].args._to, this.receiver.address);
+        assert.equal(parseNumber(this.logs[0].args._tokenId), 1);
       });
     };
 
-    context('transferFrom', function() {
+    describe('transferFrom', function() {
       context('when the msg.sender owns the specified token', function() {
         beforeEach('transfer token', async function() {
           const result = await this.token.transferFrom(creator, accounts[1], 1, { from: creator });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         transfer();
       });
@@ -514,7 +514,7 @@ contract('CertToken', function(accounts) {
           const result = await this.token.transferFrom(creator, accounts[1], 1, {
             from: accounts[1]
           });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         transfer();
       });
@@ -525,7 +525,7 @@ contract('CertToken', function(accounts) {
           const result = await this.token.transferFrom(creator, accounts[1], 1, {
             from: accounts[1]
           });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         transfer();
       });
@@ -557,12 +557,12 @@ contract('CertToken', function(accounts) {
       });
     });
 
-    context('safeTransferFrom', function() {
+    describe('safeTransferFrom', function() {
       context('when the token recepient is the regular account', function() {
         context('when the msg.sender owns the specified token', function() {
           beforeEach('transfer token', async function() {
             const result = await this.token.safeTransferFrom(creator, accounts[1], 1, { from: creator });
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transfer();
         });
@@ -573,7 +573,7 @@ contract('CertToken', function(accounts) {
             const result = await this.token.safeTransferFrom(creator, accounts[1], 1, {
               from: accounts[1]
             });
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transfer();
         });
@@ -584,7 +584,7 @@ contract('CertToken', function(accounts) {
             const result = await this.token.safeTransferFrom(creator, accounts[1], 1, {
               from: accounts[1]
             });
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transfer();
         });
@@ -620,7 +620,7 @@ contract('CertToken', function(accounts) {
         context('when the msg.sender owns the specified token', function() {
           beforeEach('transfer token', async function() {
             const result = await this.token.safeTransferFrom(creator, this.receiver.address, 1, { from: creator });
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transferToContract();
         });
@@ -631,7 +631,7 @@ contract('CertToken', function(accounts) {
             const result = await this.token.safeTransferFrom(creator, this.receiver.address, 1, {
               from: accounts[1]
             });
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transferToContract();
         });
@@ -642,7 +642,7 @@ contract('CertToken', function(accounts) {
             const result = await this.token.safeTransferFrom(creator, this.receiver.address, 1, {
               from: accounts[1]
             });
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transferToContract();
         });
@@ -675,7 +675,7 @@ contract('CertToken', function(accounts) {
       });
     });
 
-    context('safeTransferFrom with bytes metadata', function() {
+    describe('safeTransferFrom with bytes metadata', function() {
       context('when the token recepient is the regular account', function() {
         context('when the msg.sender owns the specified token', function() {
           beforeEach('transfer token', async function() {
@@ -686,7 +686,7 @@ contract('CertToken', function(accounts) {
               [creator, accounts[1], 1, web3.toHex('test')],
               { from: creator }
             );
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transfer();
         });
@@ -701,7 +701,7 @@ contract('CertToken', function(accounts) {
               [creator, accounts[1], 1, web3.toHex('test')],
               { from: accounts[1] }
             );
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transfer();
         });
@@ -716,7 +716,7 @@ contract('CertToken', function(accounts) {
               [creator, accounts[1], 1, web3.toHex('test')],
               { from: accounts[1] }
             );
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transfer();
         });
@@ -782,7 +782,7 @@ contract('CertToken', function(accounts) {
               [creator, this.receiver.address, 1, web3.toHex('test')],
               { from: creator }
             );
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transferToContract();
         });
@@ -797,7 +797,7 @@ contract('CertToken', function(accounts) {
               [creator, this.receiver.address, 1, web3.toHex('test')],
               { from: accounts[1] }
             );
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transferToContract();
         });
@@ -812,7 +812,7 @@ contract('CertToken', function(accounts) {
               [creator, this.receiver.address, 1, web3.toHex('test')],
               { from: accounts[1] }
             );
-            logs = result.logs;
+            this.logs = result.logs;
           });
           transferToContract();
         });
@@ -874,8 +874,8 @@ contract('CertToken', function(accounts) {
     let logs;
 
     beforeEach('mint a token', async function() {
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
-      await this.token.apply('', '', 1, accounts[1], { from: creator });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
+      await this.token.apply('', '', 1, accounts[2], { from: accounts[1] });
     });
 
     const _burn = function() {
@@ -896,26 +896,26 @@ contract('CertToken', function(accounts) {
       });
 
       it('emits a Transfer event', async function() {
-        assert.equal(logs.length, 2);
-        assert.equal(logs[0].event, 'Transfer');
-        assert.equal(logs[0].args._from, creator);
-        assert.equal(logs[0].args._to, ZERO_ADDRESS);
-        assert.equal(parseNumber(logs[0].args._tokenId), 1);
+        assert.equal(this.logs.length, 2);
+        assert.equal(this.logs[0].event, 'Transfer');
+        assert.equal(this.logs[0].args._from, creator);
+        assert.equal(this.logs[0].args._to, ZERO_ADDRESS);
+        assert.equal(parseNumber(this.logs[0].args._tokenId), 1);
       });
 
       it('emits a Burn event', async function() {
-        assert.equal(logs.length, 2);
-        assert.equal(logs[1].event, 'Burn');
-        assert.equal(logs[1].args.owner, creator);
-        assert.equal(parseNumber(logs[1].args.tokenId), 1);
+        assert.equal(this.logs.length, 2);
+        assert.equal(this.logs[1].event, 'Burn');
+        assert.equal(this.logs[1].args.owner, creator);
+        assert.equal(parseNumber(this.logs[1].args.tokenId), 1);
       });
     };
 
-    context('burn', function() {
+    describe('burn', function() {
       context('when successfull', function() {
         beforeEach('burn a token', async function() {
           const result = await this.token.burn(1, { from: creator });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         _burn();
       });
@@ -933,11 +933,11 @@ contract('CertToken', function(accounts) {
       });
     });
 
-    context('burnFrom', function() {
+    describe('burnFrom', function() {
       context('when the msg.sender owns the specified token', function() {
         beforeEach('burn a token', async function() {
           const result = await this.token.burnFrom(creator, 1, { from: creator });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         _burn();
       });
@@ -946,7 +946,7 @@ contract('CertToken', function(accounts) {
         beforeEach('burn a token', async function() {
           await this.token.approve(accounts[1], 1, { from: creator });
           const result = await this.token.burnFrom(creator, 1, { from: accounts[1] });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         _burn();
       });
@@ -955,7 +955,7 @@ contract('CertToken', function(accounts) {
         beforeEach('burn a token', async function() {
           await this.token.setApprovalForAll(accounts[1], true, { from: creator });
           const result = await this.token.burnFrom(creator, 1, { from: accounts[1] });
-          logs = result.logs;
+          this.logs = result.logs;
         });
         _burn();
       });
